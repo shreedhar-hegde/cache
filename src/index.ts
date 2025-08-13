@@ -7,7 +7,7 @@ export interface Cache<K, V> {
   size(): number;
 }
 
-export function createCache<K, V>(): Cache<K, V> {
+export function createCache<K, V>(capacity = Infinity): Cache<K, V> {
   const store = new Map<K, V>();
 
   return {
@@ -15,7 +15,13 @@ export function createCache<K, V>(): Cache<K, V> {
       return store.get(key);
     },
     set(key, value) {
-      return store.set(key, value);
+      if (store.size >= capacity && !store.has(key)) {
+        const oldestKey = store.keys().next().value;
+        if (oldestKey !== undefined) {
+          store.delete(oldestKey);
+        }
+      }
+      store.set(key, value);
     },
     has(key) {
       return store.has(key);
