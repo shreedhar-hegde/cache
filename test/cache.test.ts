@@ -35,4 +35,16 @@ describe("Cache", () => {
     cache.clear();
     expect(cache.size()).toBe(0);
   });
+
+  it("evicts oldest entry when capacity is exceeded", () => {
+    const cache = createCache<string, number>(2);
+
+    cache.set("a", 1);
+    cache.set("b", 2);
+    cache.set("c", 3);
+
+    expect(cache.has("a")).toBe(false);
+    expect(cache.has("b")).toBe(true);
+    expect(cache.has("c")).toBe(true);
+  });
 });
