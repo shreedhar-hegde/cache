@@ -7,7 +7,7 @@ import eslintPluginPrettier from "eslint-plugin-prettier";
  */
 export default [
   {
-    ignores: ["dist/", "*.d.ts"], // Ignore only build output and type declarations
+    ignores: ["dist/", "*.d.ts", "node_modules/"], // Ignore only build output and type declarations
   },
   ...tseslint.configs.recommended,
   {
