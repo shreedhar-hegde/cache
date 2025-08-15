@@ -1,50 +1,84 @@
-import { describe, it, expect } from "vitest";
-import { createCache } from "../src";
+import { describe, it, expect, vi } from "vitest";
+import { SimpleCache } from "../src";
 
-describe("Cache", () => {
-  it("sets and retrieves a value", () => {
-    const cache = createCache<string, number>();
-    cache.set("a", 1);
-    expect(cache.get("a")).toBe(1);
+describe("SimpleCache", () => {
+  it("should set and get values", () => {
+    const cache = new SimpleCache<string, string>();
+    cache.set("name", "shreedhar");
+    expect(cache.get("name")).toBe("shreedhar");
   });
 
-  it("returns undefined for a missing key", () => {
-    const cache = createCache<string, number>();
-    expect(cache.get("missing")).toBeUndefined();
+  it("should return size of cache", () => {
+    const cache = new SimpleCache<string, string>();
+    expect(cache.size()).toBe(0);
+    cache.set("age", "29");
+    cache.set("city", "Bengaluru");
+    expect(cache.size()).toBe(2);
   });
 
-  it("checks if a key exists", () => {
-    const cache = createCache<string, number>();
-    cache.set("a", 1);
-    expect(cache.has("a")).toBe(true);
-    expect(cache.has("b")).toBe(false);
+  it("should return undefined for non-existent keys", () => {
+    const cache = new SimpleCache<string, string>();
+    expect(cache.get("nonExistentKey")).toBeUndefined();
   });
 
-  it("deletes a key", () => {
-    const cache = createCache<string, number>();
-    cache.set("a", 1);
-    expect(cache.delete("a")).toBe(true);
-    expect(cache.has("a")).toBe(false);
-    expect(cache.delete("a")).toBe(false);
+  it("should check if a key exists", () => {
+    const cache = new SimpleCache<string, string>();
+    cache.set("exists", "yes");
+    expect(cache.has("exists")).toBe(true);
+    expect(cache.has("nonExistentKey")).toBe(false);
   });
 
-  it("clears the cache", () => {
-    const cache = createCache<string, number>();
-    cache.set("a", 1);
-    cache.set("b", 2);
+  it("should delete a key", () => {
+    const cache = new SimpleCache<string, string>();
+    cache.set("toDelete", "value");
+    expect(cache.has("toDelete")).toBe(true);
+    cache.delete("toDelete");
+    expect(cache.has("toDelete")).toBe(false);
+  });
+
+  it("should clear the cache", () => {
+    const cache = new SimpleCache<string, string>();
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
+    expect(cache.size()).toBe(2);
     cache.clear();
     expect(cache.size()).toBe(0);
   });
 
-  it("evicts oldest entry when capacity is exceeded", () => {
-    const cache = createCache<string, number>(2);
+  it("should respect cache capacity", () => {
+    const cache = new SimpleCache<string, string>({ capacity: 2 });
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
+    expect(cache.size()).toBe(2);
+    cache.set("key3", "value3");
+    expect(cache.size()).toBe(2);
+    expect(cache.has("key1")).toBe(false); // key1 should be evicted
+  });
 
-    cache.set("a", 1);
-    cache.set("b", 2);
-    cache.set("c", 3);
+  it("should return undefined after TTL expires", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date()); // baseline
 
-    expect(cache.has("a")).toBe(false);
-    expect(cache.has("b")).toBe(true);
-    expect(cache.has("c")).toBe(true);
+    const cache = new SimpleCache<string, string>({ ttl: 1000 });
+    cache.set("key1", "value1");
+    expect(cache.get("key1")).toBe("value1");
+
+    vi.advanceTimersByTime(1001); // move 1 ms beyond expiry
+
+    expect(cache.get("key1")).toBeUndefined();
+
+    vi.useRealTimers();
+  });
+
+  it("should evict oldest entry when over capacity", () => {
+    const cache = new SimpleCache<string, string>({ capacity: 2 });
+
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
+    cache.set("key3", "value3");
+
+    expect(cache.has("key1")).toBe(false);
+    expect(cache.has("key2")).toBe(true);
+    expect(cache.has("key3")).toBe(true);
   });
 });

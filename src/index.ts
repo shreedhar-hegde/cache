@@ -1,39 +1,54 @@
-export interface Cache<K, V> {
-  get(key: K): V | undefined;
-  set(key: K, value: V): void;
-  has(key: K): boolean;
-  delete(key: K): boolean;
-  clear(): void;
-  size(): number;
-}
+type Entry<V> = {
+  value: V;
+  expiry: number | null;
+};
 
-export function createCache<K, V>(capacity = Infinity): Cache<K, V> {
-  const store = new Map<K, V>();
+export class SimpleCache<K, V> {
+  private store = new Map<K, Entry<V>>();
+  private capacity: number;
+  private ttl: number | null;
 
-  return {
-    get(key) {
-      return store.get(key);
-    },
-    set(key, value) {
-      if (store.size >= capacity && !store.has(key)) {
-        const oldestKey = store.keys().next().value;
-        if (oldestKey !== undefined) {
-          store.delete(oldestKey);
-        }
+  constructor(options?: { capacity?: number; ttl?: number }) {
+    this.capacity = options?.capacity ?? Infinity;
+    this.ttl = options?.ttl ?? null;
+  }
+
+  set(key: K, value: V): void {
+    if (this.store.size >= this.capacity) {
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey != undefined) {
+        this.store.delete(oldestKey);
       }
-      store.set(key, value);
-    },
-    has(key) {
-      return store.has(key);
-    },
-    delete(key) {
-      return store.delete(key);
-    },
-    clear() {
-      return store.clear();
-    },
-    size() {
-      return store.size;
-    },
-  };
+    }
+    const expiry = this.ttl ? Date.now() + this.ttl : null;
+    this.store.set(key, { value, expiry });
+  }
+
+  get(key: K): V | undefined {
+    const entry = this.store.get(key);
+    if (!entry) return undefined;
+
+    if (entry.expiry && Date.now() > entry.expiry) {
+      this.store.delete(key);
+      return undefined;
+    }
+
+    return entry.value;
+  }
+
+  has(key: K): boolean {
+    return this.get(key) !== undefined;
+  }
+
+  delete(key: K): boolean {
+    return this.store.delete(key);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  size(): number {
+    return this.store.size;
+  }
 }
