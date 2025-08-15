@@ -6,21 +6,25 @@ type Entry<V> = {
 export class SimpleCache<K, V> {
   private store = new Map<K, Entry<V>>();
   private capacity: number;
-  private ttl: number | null;
+  private defaultTtl: number = 2000;
 
-  constructor(options?: { capacity?: number; ttl?: number }) {
+  constructor(options?: { capacity?: number; defaultTtl?: number }) {
     this.capacity = options?.capacity ?? Infinity;
-    this.ttl = options?.ttl ?? null;
+    this.defaultTtl = options?.defaultTtl ?? this.defaultTtl;
   }
 
-  set(key: K, value: V): void {
+  set(key: K, value: V, itemTtl?: number): void {
+    const ttl = itemTtl ?? this.defaultTtl;
+    const expiry = ttl > 0 ? Date.now() + ttl : null;
+
     if (this.store.size >= this.capacity) {
+      // FIFO eviction
       const oldestKey = this.store.keys().next().value;
-      if (oldestKey != undefined) {
+      if (oldestKey !== undefined) {
         this.store.delete(oldestKey);
       }
     }
-    const expiry = this.ttl ? Date.now() + this.ttl : null;
+
     this.store.set(key, { value, expiry });
   }
 
@@ -28,7 +32,7 @@ export class SimpleCache<K, V> {
     const entry = this.store.get(key);
     if (!entry) return undefined;
 
-    if (entry.expiry && Date.now() > entry.expiry) {
+    if (entry.expiry !== null && Date.now() > entry.expiry) {
       this.store.delete(key);
       return undefined;
     }

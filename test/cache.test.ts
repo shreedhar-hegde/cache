@@ -59,7 +59,7 @@ describe("SimpleCache", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date()); // baseline
 
-    const cache = new SimpleCache<string, string>({ ttl: 1000 });
+    const cache = new SimpleCache<string, string>({ defaultTtl: 1000 });
     cache.set("key1", "value1");
     expect(cache.get("key1")).toBe("value1");
 
@@ -80,5 +80,27 @@ describe("SimpleCache", () => {
     expect(cache.has("key1")).toBe(false);
     expect(cache.has("key2")).toBe(true);
     expect(cache.has("key3")).toBe(true);
+  });
+
+  it("should respect entry specific TTL over global TTL", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date()); // baseline
+
+    const cache = new SimpleCache<string, string>({});
+    cache.set("key1", "value1");
+    expect(cache.get("key1")).toBe("value1");
+
+    // Set a specific TTL for this entry
+    cache.set("key2", "value2", 3000);
+    vi.advanceTimersByTime(1000); // move 1s forward
+
+    expect(cache.get("key2")).toBe("value2");
+
+    vi.advanceTimersByTime(1001);
+
+    expect(cache.get("key1")).toBeUndefined();
+    expect(cache.get("key2")).toBe("value2");
+
+    vi.useRealTimers();
   });
 });
