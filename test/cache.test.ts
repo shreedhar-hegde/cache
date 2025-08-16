@@ -86,7 +86,7 @@ describe("SimpleCache", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date()); // baseline
 
-    const cache = new SimpleCache<string, string>({});
+    const cache = new SimpleCache<string, string>({ defaultTtl: 2000 });
     cache.set("key1", "value1");
     expect(cache.get("key1")).toBe("value1");
 
@@ -98,9 +98,47 @@ describe("SimpleCache", () => {
 
     vi.advanceTimersByTime(1001);
 
-    expect(cache.get("key1")).toBeUndefined();
-    expect(cache.get("key2")).toBe("value2");
+    expect(cache.get("key1")).toBeUndefined(); // expired by 2000ms global
+    expect(cache.get("key2")).toBe("value2"); // still valid (3000ms specific)
 
     vi.useRealTimers();
+  });
+
+  it("should expire entries based on global TTL", () => {
+    vi.useFakeTimers();
+    const cache = new SimpleCache<string, string>({ defaultTtl: 3000 });
+    cache.set("key1", "value1");
+    expect(cache.get("key1")).toBe("value1");
+    vi.advanceTimersByTime(2000); // move 2s forward
+    expect(cache.get("key1")).toBe("value1");
+    vi.advanceTimersByTime(1001); // move 1s beyond expiry
+    expect(cache.get("key1")).toBeUndefined();
+    vi.useRealTimers();
+  });
+
+  it("should evict least recently used entry when over capacity", () => {
+    const cache = new SimpleCache<string, string>({ capacity: 2 });
+
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
+    cache.get("key1"); // Access key1 to make it recently used
+    cache.set("key3", "value3"); // This should evict key1
+
+    expect(cache.get("key1")).toBe("value1");
+    expect(cache.get("key2")).toBeUndefined(); // key2 should be evicted
+    expect(cache.get("key3")).toBe("value3");
+  });
+
+  it("should update recency when value is overwritten", () => {
+    const cache = new SimpleCache<string, string>({ capacity: 2 });
+
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
+    cache.set("key1", "newValue1"); // Update key1
+    cache.set("key3", "value3"); // This should evict key2
+
+    expect(cache.get("key1")).toBe("newValue1");
+    expect(cache.get("key2")).toBeUndefined(); // key2 should be evicted
+    expect(cache.get("key3")).toBe("value3");
   });
 });
