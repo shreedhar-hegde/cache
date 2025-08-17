@@ -185,11 +185,24 @@ describe("SimpleCache", () => {
       cache.set("key2", "value2");
       cache.set("key3", "value3");
 
-      //expect any of the keys to be evicted
-      expect(cache.has("key1") || cache.has("key2") || cache.has("key3")).toBe(
-        true,
-      );
-      expect(cache.size()).toBe(2); // Only
+      // Test the important properties:
+      expect(cache.size()).toBe(2);
+
+      const remainingKeys = Array.from(cache.keys());
+      expect(remainingKeys).toHaveLength(2);
+
+      // All remaining keys should be from our original set
+      expect(
+        remainingKeys.every((key) => ["key1", "key2", "key3"].includes(key))
+      ).toBe(true);
+
+      // Exactly one key should be missing
+      const hasKey1 = cache.has("key1");
+      const hasKey2 = cache.has("key2");
+      const hasKey3 = cache.has("key3");
+
+      const presentCount = [hasKey1, hasKey2, hasKey3].filter(Boolean).length;
+      expect(presentCount).toBe(2);
     });
 
     it("should throw error when eviction policy is NONE", () => {
