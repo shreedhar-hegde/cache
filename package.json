@@ -37,8 +37,10 @@
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^8.9.0",
     "eslint-define-config": "^2.1.0",
+    "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
+    "prettier": "^3.6.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
@@ -50,7 +52,6 @@
     ]
   },
   "dependencies": {
-    "eslint-plugin-prettier": "^5.5.4",
     "typescript-eslint": "^8.39.1"
   }
 }

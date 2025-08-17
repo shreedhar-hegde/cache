@@ -141,4 +141,121 @@ describe("SimpleCache", () => {
     expect(cache.get("key2")).toBeUndefined(); // key2 should be evicted
     expect(cache.get("key3")).toBe("value3");
   });
+
+  describe("Eviction policies", () => {
+    it("should evict least recently used (LRU)", () => {
+      const cache = new SimpleCache<string, string>({
+        capacity: 2,
+        evictionPolicy: "lru",
+      });
+
+      cache.set("key1", "value1");
+      cache.set("key2", "value2");
+      cache.get("key1");
+
+      cache.set("key3", "value3");
+
+      expect(cache.has("key1")).toBe(true);
+      expect(cache.has("key2")).toBe(false);
+      expect(cache.has("key3")).toBe(true);
+    });
+
+    it("should evict first in first out (FIFO)", () => {
+      const cache = new SimpleCache<string, string>({
+        capacity: 2,
+        evictionPolicy: "fifo",
+      });
+
+      cache.set("key1", "value1");
+      cache.set("key2", "value2");
+      cache.set("key3", "value3");
+
+      expect(cache.has("key1")).toBe(false);
+      expect(cache.has("key2")).toBe(true);
+      expect(cache.has("key3")).toBe(true);
+    });
+
+    it("should evict random key when over capacity (RANDOM)", () => {
+      const cache = new SimpleCache<string, string>({
+        capacity: 2,
+        evictionPolicy: "random",
+      });
+
+      cache.set("key1", "value1");
+      cache.set("key2", "value2");
+      cache.set("key3", "value3");
+
+      //expect any of the keys to be evicted
+      expect(cache.has("key1") || cache.has("key2") || cache.has("key3")).toBe(
+        true
+      );
+      expect(cache.size()).toBe(2); // Only
+    });
+
+    it("should throw error when eviction policy is NONE", () => {
+      const cache = new SimpleCache<string, string>({
+        capacity: 1,
+        evictionPolicy: "none",
+      });
+      cache.set("key1", "value1"); // fills capacity
+      expect(() => {
+        cache.set("key2", "value2");
+      }).toThrow("Cache capacity reached");
+    });
+  });
+
+  describe("TTL Utilities", () => {
+    it("should return correct TTL value", () => {
+      vi.useFakeTimers();
+
+      const cache = new SimpleCache<string, string>({});
+
+      cache.set("key1", "value1", 5000);
+
+      expect(cache.ttl("key1")).toBe(5000);
+
+      vi.advanceTimersByTime(2000);
+      expect(cache.ttl("key1")).toBeGreaterThanOrEqual(3000);
+
+      vi.useRealTimers();
+    });
+
+    it("should return -1 no expiry", () => {
+      const cache = new SimpleCache<string, string>({});
+
+      cache.set("key1", "value1");
+      expect(cache.ttl("key1")).toBe(-1);
+    });
+
+    it("should return -2 for non-existent keys", () => {
+      const cache = new SimpleCache<string, string>({});
+      expect(cache.ttl("nonExistentKey")).toBe(-2);
+    });
+
+    it("should allow updating expiry using expire()", () => {
+      vi.useFakeTimers();
+
+      const cache = new SimpleCache<string, string>({});
+
+      cache.set("key1", "value1");
+      expect(cache.expire("key1", 2000)).toBe(true);
+
+      vi.advanceTimersByTime(2001);
+      expect(cache.get("key1")).toBeUndefined();
+      vi.useRealTimers();
+    });
+
+    it("should allow removing expiry using persist()", () => {
+      vi.useFakeTimers();
+
+      const cache = new SimpleCache<string, string>({});
+
+      cache.set("key1", "value1", 2000);
+      expect(cache.persist("key1")).toBe(true);
+
+      vi.advanceTimersByTime(3000);
+      expect(cache.get("key1")).toBe("value1");
+      vi.useRealTimers();
+    });
+  });
 });
