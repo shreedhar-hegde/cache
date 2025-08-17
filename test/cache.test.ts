@@ -187,7 +187,7 @@ describe("SimpleCache", () => {
 
       //expect any of the keys to be evicted
       expect(cache.has("key1") || cache.has("key2") || cache.has("key3")).toBe(
-        true
+        true,
       );
       expect(cache.size()).toBe(2); // Only
     });
