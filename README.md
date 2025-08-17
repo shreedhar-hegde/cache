@@ -15,13 +15,13 @@ A lightweight, type-safe, in-memory cache implementation for TypeScript/JavaScri
 ## Installation
 
 ```bash
-npm install simple-cache
+npm install simple-cache-ts
 ```
 
 ## Quick Start
 
 ```typescript
-import { SimpleCache } from "simple-cache";
+import { SimpleCache } from "simple-cache-ts";
 
 // Basic usage
 const cache = new SimpleCache<string, number>();
@@ -174,7 +174,7 @@ const allKeys = Array.from(cache.keys());
 ### HTTP API Cache
 
 ```typescript
-import { SimpleCache } from "simple-cache";
+import { SimpleCache } from "simple-cache-ts";
 
 const apiCache = new SimpleCache<string, unknown>({
   capacity: 100,
