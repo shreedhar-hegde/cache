@@ -1,6 +1,24 @@
 {
-  "name": "cache",
+  "name": "simple-cache",
   "version": "1.0.0",
+  "description": "A lightweight, type-safe, in-memory cache with TTL and multiple eviction policies",
+  "author": "Shreedhar Hegde",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shreedhar-hegde/cache.git"
+  },
+  "homepage": "https://github.com/yourusername/simple-cache#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/simple-cache/issues"
+  },
+  "keywords": [
+    "cache",
+    "memory-cache",
+    "lru",
+    "ttl",
+    "typescript",
+    "zero-dependencies"
+  ],
   "type": "module",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
@@ -26,10 +44,7 @@
     "prepare": "husky"
   },
   "sideEffects": false,
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "description": "",
   "devDependencies": {
     "@types/node": "^24.2.1",
     "@typescript-eslint/eslint-plugin": "8.39.1",

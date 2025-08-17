@@ -193,7 +193,7 @@ describe("SimpleCache", () => {
 
       // All remaining keys should be from our original set
       expect(
-        remainingKeys.every((key) => ["key1", "key2", "key3"].includes(key))
+        remainingKeys.every((key) => ["key1", "key2", "key3"].includes(key)),
       ).toBe(true);
 
       // Exactly one key should be missing
