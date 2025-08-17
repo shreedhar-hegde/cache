@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { SimpleCache } from "../src";
+import { SimpleCache } from "../src/simpleCache.js";
 
 describe("SimpleCache", () => {
   it("should set and get values", () => {
