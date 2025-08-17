@@ -1,5 +1,8 @@
 {
     "compilerOptions": {
+        "target": "ESNext",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "strict": true,
         "noUncheckedIndexedAccess": true,
         "noImplicitOverride": true,
@@ -7,14 +10,15 @@
         "declaration": true,
         "emitDeclarationOnly": false,
         "declarationMap": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "esModuleInterop": true
     },
     "include": [
         "src",
-        "test",
+        "test"
     ],
     "exclude": [
         "node_modules",
-        "dist",
+        "dist"
     ]
 }
