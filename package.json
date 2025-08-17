@@ -1,5 +1,5 @@
 {
-  "name": "simple-cache",
+  "name": "simple-cache-ts",
   "version": "1.0.0",
   "description": "A lightweight, type-safe, in-memory cache with TTL and multiple eviction policies",
   "author": "Shreedhar Hegde",
