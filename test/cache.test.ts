@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SimpleCache } from "../src/simpleCache.js";
 
 describe("SimpleCache", () => {
@@ -269,6 +269,352 @@ describe("SimpleCache", () => {
       vi.advanceTimersByTime(3000);
       expect(cache.get("key1")).toBe("value1");
       vi.useRealTimers();
+    });
+  });
+
+  describe("Cache Statistics", () => {
+    let cache: SimpleCache<string, number>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      cache = new SimpleCache<string, number>({ enableStats: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    describe("Basic Stats Tracking", () => {
+      it("should track set operations", () => {
+        cache.set("key1", 1);
+        cache.set("key2", 2);
+
+        const stats = cache.getStats();
+        expect(stats.sets).toBe(2);
+      });
+
+      it("should track hit operations", () => {
+        cache.set("key1", 1);
+        cache.get("key1");
+        cache.get("key1");
+
+        const stats = cache.getStats();
+        expect(stats.hits).toBe(2);
+      });
+
+      it("should track miss operations", () => {
+        cache.get("nonexistent1");
+        cache.get("nonexistent2");
+
+        const stats = cache.getStats();
+        expect(stats.misses).toBe(2);
+      });
+
+      it("should track delete operations", () => {
+        cache.set("key1", 1);
+        cache.set("key2", 2);
+        cache.delete("key1");
+        cache.delete("key2");
+        cache.delete("nonexistent"); // Should not increment
+
+        const stats = cache.getStats();
+        expect(stats.deletes).toBe(2);
+      });
+    });
+
+    describe("Hit Rate Calculations", () => {
+      it("should calculate correct hit rate", () => {
+        cache.set("key1", 1);
+        cache.get("key1"); // hit
+        cache.get("key1"); // hit
+        cache.get("nonexistent"); // miss
+
+        const stats = cache.getStats();
+        expect(stats.hits).toBe(2);
+        expect(stats.misses).toBe(1);
+        expect(stats.totalRequests).toBe(3);
+        expect(stats.hitRate).toBe(66.67);
+        expect(stats.missRate).toBe(33.33);
+      });
+
+      it("should handle zero requests", () => {
+        const stats = cache.getStats();
+        expect(stats.hitRate).toBe(0);
+        expect(stats.missRate).toBe(0);
+        expect(stats.totalRequests).toBe(0);
+      });
+
+      it("should handle 100% hit rate", () => {
+        cache.set("key1", 1);
+        cache.get("key1");
+        cache.get("key1");
+
+        const stats = cache.getStats();
+        expect(stats.hitRate).toBe(100);
+        expect(stats.missRate).toBe(0);
+      });
+
+      it("should handle 100% miss rate", () => {
+        cache.get("miss1");
+        cache.get("miss2");
+
+        const stats = cache.getStats();
+        expect(stats.hitRate).toBe(0);
+        expect(stats.missRate).toBe(100);
+      });
+    });
+
+    describe("TTL and Expiration Stats", () => {
+      it("should track expired entries as misses", () => {
+        cache.set("key1", 1, 1000); // 1 second TTL
+
+        // Advance time to expire the entry
+        vi.advanceTimersByTime(2000);
+
+        cache.get("key1"); // Should be expired
+
+        const stats = cache.getStats();
+        expect(stats.expires).toBe(1);
+        expect(stats.misses).toBe(1);
+        expect(stats.hits).toBe(0);
+      });
+
+      it("should track multiple expirations", () => {
+        cache.set("key1", 1, 1000);
+        cache.set("key2", 2, 1000);
+
+        vi.advanceTimersByTime(2000);
+
+        cache.get("key1");
+        cache.get("key2");
+        cache.has("key1"); // Should also trigger expiration check
+
+        const stats = cache.getStats();
+        expect(stats.expires).toBe(2); // 2 from get
+        expect(stats.misses).toBe(2);
+      });
+    });
+
+    describe("Eviction Stats", () => {
+      it("should track LRU evictions", () => {
+        const lruCache = new SimpleCache<string, number>({
+          capacity: 2,
+          evictionPolicy: "lru",
+          enableStats: true,
+        });
+
+        lruCache.set("key1", 1);
+        lruCache.set("key2", 2);
+        lruCache.set("key3", 3); // Should evict key1
+
+        const stats = lruCache.getStats();
+        expect(stats.evictions).toBe(1);
+        expect(stats.sets).toBe(3);
+      });
+
+      it("should track FIFO evictions", () => {
+        const fifoCache = new SimpleCache<string, number>({
+          capacity: 2,
+          evictionPolicy: "fifo",
+          enableStats: true,
+        });
+
+        fifoCache.set("key1", 1);
+        fifoCache.set("key2", 2);
+        fifoCache.set("key3", 3); // Should evict key1
+        fifoCache.set("key4", 4); // Should evict key2
+
+        const stats = fifoCache.getStats();
+        expect(stats.evictions).toBe(2);
+      });
+
+      it("should track random evictions", () => {
+        const randomCache = new SimpleCache<string, number>({
+          capacity: 1,
+          evictionPolicy: "random",
+          enableStats: true,
+        });
+
+        randomCache.set("key1", 1);
+        randomCache.set("key2", 2); // Should evict key1
+
+        const stats = randomCache.getStats();
+        expect(stats.evictions).toBe(1);
+      });
+
+      it("should not track evictions when policy is none", () => {
+        const noneCache = new SimpleCache<string, number>({
+          capacity: 1,
+          evictionPolicy: "none",
+          enableStats: true,
+        });
+
+        noneCache.set("key1", 1);
+
+        expect(() => noneCache.set("key2", 2)).toThrow(
+          "Cache capacity reached",
+        );
+
+        const stats = noneCache.getStats();
+        expect(stats.evictions).toBe(0);
+      });
+    });
+
+    describe("Stats Control", () => {
+      it("should allow enabling/disabling stats", () => {
+        expect(cache.isStatsEnabled()).toBe(true);
+
+        cache.disableStats();
+        expect(cache.isStatsEnabled()).toBe(false);
+
+        cache.enableStats();
+        expect(cache.isStatsEnabled()).toBe(true);
+      });
+
+      it("should not track stats when disabled", () => {
+        cache.disableStats();
+
+        cache.set("key1", 1);
+        cache.get("key1");
+        cache.get("nonexistent");
+
+        const stats = cache.getStats();
+        expect(stats.sets).toBe(0);
+        expect(stats.hits).toBe(0);
+        expect(stats.misses).toBe(0);
+      });
+
+      it("should create cache with stats disabled", () => {
+        const noStatsCache = new SimpleCache<string, number>({
+          enableStats: false,
+        });
+
+        expect(noStatsCache.isStatsEnabled()).toBe(false);
+
+        noStatsCache.set("key1", 1);
+        noStatsCache.get("key1");
+
+        const stats = noStatsCache.getStats();
+        expect(stats.sets).toBe(0);
+        expect(stats.hits).toBe(0);
+      });
+
+      it("should reset stats", () => {
+        cache.set("key1", 1);
+        cache.get("key1");
+        cache.get("nonexistent");
+
+        let stats = cache.getStats();
+        expect(stats.sets).toBe(1);
+        expect(stats.hits).toBe(1);
+        expect(stats.misses).toBe(1);
+
+        cache.resetStats();
+
+        stats = cache.getStats();
+        expect(stats.sets).toBe(0);
+        expect(stats.hits).toBe(0);
+        expect(stats.misses).toBe(0);
+        expect(stats.totalRequests).toBe(0);
+      });
+
+      it("should reset stats when cleared", () => {
+        cache.set("key1", 1);
+        cache.get("key1");
+
+        let stats = cache.getStats();
+        expect(stats.sets).toBe(1);
+        expect(stats.hits).toBe(1);
+
+        cache.clear();
+
+        stats = cache.getStats();
+        expect(stats.sets).toBe(0);
+        expect(stats.hits).toBe(0);
+      });
+    });
+
+    describe("Complex Scenarios", () => {
+      it("should handle mixed operations correctly", () => {
+        // Setup
+        cache.set("key1", 1);
+        cache.set("key2", 2, 1000); // With TTL
+
+        // Operations
+        cache.get("key1"); // hit
+        cache.get("key2"); // hit
+        cache.get("missing"); // miss
+
+        // Expire key2
+        vi.advanceTimersByTime(2000);
+        cache.get("key2"); // expired + miss
+
+        // Delete
+        cache.delete("key1");
+
+        const stats = cache.getStats();
+        expect(stats.sets).toBe(2);
+        expect(stats.hits).toBe(2);
+        expect(stats.misses).toBe(2);
+        expect(stats.deletes).toBe(1);
+        expect(stats.expires).toBe(1);
+        expect(stats.totalRequests).toBe(4);
+        expect(stats.hitRate).toBe(50);
+        expect(stats.missRate).toBe(50);
+      });
+
+      it("should track overwrite operations correctly", () => {
+        cache.set("key1", 1);
+        cache.set("key1", 2); // Overwrite
+        cache.set("key1", 3); // Overwrite again
+
+        const stats = cache.getStats();
+        expect(stats.sets).toBe(3);
+      });
+
+      it("should handle LRU updates in stats", () => {
+        const lruCache = new SimpleCache<string, number>({
+          capacity: 2,
+          evictionPolicy: "lru",
+          enableStats: true,
+        });
+
+        lruCache.set("key1", 1);
+        lruCache.set("key2", 2);
+        lruCache.get("key1"); // Makes key1 most recent
+        lruCache.set("key3", 3); // Should evict key2, not key1
+
+        const stats = lruCache.getStats();
+        expect(stats.sets).toBe(3);
+        expect(stats.hits).toBe(1);
+        expect(stats.evictions).toBe(1);
+
+        // Verify key1 is still there, key2 was evicted
+        expect(lruCache.has("key1")).toBe(true);
+        expect(lruCache.has("key2")).toBe(false);
+        expect(lruCache.has("key3")).toBe(true);
+      });
+    });
+
+    describe("Performance with Stats", () => {
+      it("should have minimal performance impact when stats enabled", () => {
+        const iterations = 10000;
+
+        const start = performance.now();
+        for (let i = 0; i < iterations; i++) {
+          cache.set(`key${i}`, i);
+          cache.get(`key${i}`);
+        }
+        const end = performance.now();
+
+        const stats = cache.getStats();
+        expect(stats.sets).toBe(iterations);
+        expect(stats.hits).toBe(iterations);
+        expect(stats.hitRate).toBe(100);
+
+        // Should complete reasonably quickly (adjust threshold as needed)
+        expect(end - start).toBeLessThan(1000);
+      });
     });
   });
 });
